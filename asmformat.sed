@@ -48,9 +48,9 @@ s/^\s\+\(\b\w\+\b\)\s\+/\t\1\t/g
  #without arguments
 s/^\s\+\(\b\w\+\b\)$/\t\1/g
 # after labels
-s/^\(\w\{1,6\}\b:\)\s\+\(\b\w\+\b\)\s\+/\1\t\2\t/g
-s/^\(\w\{7\}\b:\)\s\+\(\b\w\+\b\)\s\+/\1\2\t/g
-s/^\(\w\{8,\}\b:\)\s\+\(\b\w\+\b\)\s\+/\1\n\t\2\t/g
+s/^\(\w\{1,6\}\b:\)\s*\(\b\w\+\b\)\s\+/\1\t\2\t/g
+s/^\(\w\{7\}\b:\)\s*\(\b\w\+\b\)\s\+/\1\2\t/g
+s/^\(\w\{8,\}\b:\)\s*\(\b\w\+\b\)\s\+/\1\n\t\2\t/g
 
 # EQU, BIT, DATA, and XDATA
 s/^\(\w\{1,7\}\b\)\s\+\([eE][qQ][uU]\|[bB][iI][tT]\|[xX]\?[dD][aA][tT][aA]\)/\1\t\t\t\2/g
