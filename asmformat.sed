@@ -22,23 +22,15 @@ s/#[hH][iI][gG][hH]\s\+\(-[0-9]\+\)/#high (\1)/
 /^\$showincs/d
 /^\$subtitle/d
 /^\$version/d
-/^\$pw=.*/d
 /^\$pl=.*/d
 /^\$pg/d
 /^\$ingnorecase/d
-s/^xxxx:xxxx$/;xxxx:xxxx/
-
-# translate some compiler directives
-s/^0xtitle/$title/
-s/^0xdate/$date/
-s/0xpw\s*=\?\([0-9]\+\).*$/$pw (\1)/
-s/0xpl\s*=\?\([0-9]\+\).*$/$pl (\1)/
 
 # translate includes
-s/[iI][nN][cC][lL][uU][dD][eE]\s\+\(\w\+\)\.[aA][sS][mM]/$include (\1.ASM)/
+s/[iI][nN][cC][lL][uU][dD][eE]\s\+\(\w\+\)\.[aA][sS][mM]/include \L\1.\UASM/
 
-#translate hexadecimal literals from $0f to 0fh
-s/$\([0123456789abcdefABCDEF]\+\)\b/0\1h/g
+# translate some compiler directives
+s/^\$pw\s*=\?\([0-9]\+\).*$/$pw 255/
 
 #translate bit literals from %0101 to 0101b
 s/%\([01]\+\)\b/\1b/g
@@ -51,12 +43,14 @@ s/\s\+$//g
 
 # replace indentation (spaces->tabs)
 # instructions
-s/^\s\+\(\b\w\+\b\)\s\+/\t\1\t/g # with arguments
-s/^\s\+\(\b\w\+\b\)$/\t\1/g #without arguments
+ # with arguments
+s/^\s\+\(\b\w\+\b\)\s\+/\t\1\t/g
+ #without arguments
+s/^\s\+\(\b\w\+\b\)$/\t\1/g
 # after labels
-s/^\(\w\{1,6\}\b:\)\s\+\(\b\w\+\b\)\s\+/\1\t\2\t/g
-s/^\(\w\{7\}\b:\)\s\+\(\b\w\+\b\)\s\+/\1\2\t/g
-s/^\(\w\{8,\}\b:\)\s\+\(\b\w\+\b\)\s\+/\1\n\t\2\t/g
+s/^\(\w\{1,6\}\b:\)\s*\(\b\w\+\b\)\s\+/\1\t\2\t/g
+s/^\(\w\{7\}\b:\)\s*\(\b\w\+\b\)\s\+/\1\2\t/g
+s/^\(\w\{8,\}\b:\)\s*\(\b\w\+\b\)\s\+/\1\n\t\2\t/g
 
 # EQU, BIT, DATA, and XDATA
 s/^\(\w\{1,7\}\b\)\s\+\([eE][qQ][uU]\|[bB][iI][tT]\|[xX]\?[dD][aA][tT][aA]\)/\1\t\t\t\2/g
@@ -70,3 +64,7 @@ s/^\(\t\b\w\+\b\s\+\);/\1\t;/g
 s/\(\t[^\t]\{,7\}\b\s\+\);/\1\t;/g
 s/\(\t[^\t]\{,15\}\b\s\+\);/\1\t;/g
 s/\(\t[^\t]\{,23\}\b\s\+\);/\1\t;/g
+
+# remove weird bytes
+s/\x1A//g
+s/\r//g
