@@ -19,7 +19,6 @@ s/#[hH][iI][gG][hH]\s\+\(-[0-9]\+\)/#high (\1)/
 /^\$bs/d
 /^\$\(copyright\|cr\)/d
 /^\$showmacs/d
-/^\$showincs/d
 /^\$subtitle/d
 /^\$version/d
 /^\$pl=.*/d
