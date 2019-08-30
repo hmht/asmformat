@@ -1,4 +1,15 @@
 #!/bin/sed -f
+
+#add spaces after commas in instructions
+h; s/[^;]*//1; x; s/;.*//; s/,\s*/, /g; G; s/\([^\n]*\)\n/\1/
+# h;	save in hold buffer
+# s/[^;]*;/;/;	remove everything before ;
+# x;	swap with hold buffer
+# s/;.*//;	remove comment
+# s/,\s*/, /g;	make sure there's one space after commas in non-comments
+# G;	append hold buffer (has comment :) and newline :(
+# s/\([^\n]*\)\n/\1/	remove 1 newline
+
 # add colon after labels
 s/^\(\w\+\)\s/\1:/
 s/^\(\w\+\)$/\1:/
@@ -19,7 +30,6 @@ s/#[hH][iI][gG][hH]\s\+\(-[0-9]\+\)/#high (\1)/
 /^\$bs/d
 /^\$\(copyright\|cr\)/d
 /^\$showmacs/d
-/^\$showincs/d
 /^\$subtitle/d
 /^\$version/d
 /^\$pl=.*/d
@@ -34,9 +44,6 @@ s/^\$pw\s*=\?\([0-9]\+\).*$/$pw 255/
 
 #translate bit literals from %0101 to 0101b
 s/%\([01]\+\)\b/\1b/g
-
-#add spaces after commas
-s/,\([^ ]\)/, \1/g
 
 #trim whitespace
 s/\s\+$//g
