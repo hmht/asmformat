@@ -20,6 +20,3 @@ s/[iI][nN][cC][lL][uU][dD][eE]\s\+\(\w\+\)\.[aA][sS][mM]/include \L\1.\UASM/
 
 # translate some compiler directives
 s/^\$pw\s*=\?\([0-9]\+\).*$/$pw 255/
-
-#translate bit literals from %0101 to 0101b
-s/%\([01]\+\)\b/\1b/g

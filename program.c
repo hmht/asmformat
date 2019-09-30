@@ -37,6 +37,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+#include<ctype.h>
 
 /******************************************************************************
  * Section: configuration
@@ -82,6 +83,25 @@
  *
  * figure out what kind of token you have
  */
+
+static bool is_allcaps(char const*token)
+{
+	if ( !token)
+	{
+		return false;
+	}
+
+	while ( *token)
+	{
+		if ( 'a' <= *token && *token <= 'z' )
+		{
+			return false;
+		}
+		token += 1;
+	}
+	return true;
+}
+
 static bool is_newline(char const*token)
 {
 	return !token;
@@ -255,14 +275,105 @@ static int pad_to_column(int from, int to, FILE*ofp)
 
 static void lowercase_string(char*lower, char const*upper)
 {
-	while (*upper)
+	while ( *upper)
 	{
-		#include<ctype.h>
-		*lower = tolower (*upper);
+		*lower = tolower ( *upper);
 		upper += 1;
 		lower += 1;
 	}
 	*lower = '\0';
+}
+
+static char*normalize_label(char const*label)
+{
+	if ( !label)
+	{
+		return 0;
+	}
+	char*nlabel = strdup (label);
+	if (is_allcaps (label))
+	{
+		lowercase_string (nlabel, label);
+	} else {
+		*nlabel = tolower ( *nlabel);
+	}
+
+	return nlabel;
+}
+
+static bool fix_binary_literal_at(char*literal, int width)
+{
+	if ( width < 8)
+	{
+		fprintf (stderr, "binary number too short\n" );
+		return false;
+	} else {
+	// TODO maybe check for junk at end of %bin
+		while (literal[1] == '0'
+			|| literal[1] == '1' )
+		{
+			*literal = literal[1];
+			literal += 1;
+		}
+		*literal = 'b';
+	}
+	return true;
+}
+
+static bool fix_binary_notations(char*label)
+{
+	if ( !label)
+	{
+		return false;
+	}
+	bool is_in_string = false;
+	int looking_for_binary = 8;
+	char*writeout = 0;
+	while ( *label)
+	{
+		if ( *label == '\'' )
+		{
+			is_in_string = !is_in_string;
+		} else switch ( *label)
+		{
+		default:
+			if (writeout)
+			{
+				if (fix_binary_literal_at (writeout, 8 - looking_for_binary))
+				{
+					writeout = 0;
+				} else {
+					return false;
+				}
+			}
+		break; case '%':
+			if (writeout)
+			{
+				fprintf (stderr, "nested binary number\n" );
+				return false;
+			}
+			writeout = label;
+			looking_for_binary = 8;
+		break;
+		case '0':
+		case '1':
+			if (writeout)
+			{
+				if ( !looking_for_binary)
+				{
+					fprintf (stderr, "binary number too long\n" );
+					return false;
+				}
+				looking_for_binary -= 1;
+			}
+		}
+		label += 1;
+	}
+	if (writeout)
+	{
+		return fix_binary_literal_at (writeout, 8 - looking_for_binary);
+	}
+	return true;
 }
 
 /******************************************************************************
@@ -271,7 +382,7 @@ static void lowercase_string(char*lower, char const*upper)
  * write out tokens with the desired formatting
  */
 
-static void format_comment(char*token, int column, FILE*ofp)
+static void format_comment(char const*token, int column, FILE*ofp)
 {
 	if (column != 0)
 	{
@@ -280,7 +391,7 @@ static void format_comment(char*token, int column, FILE*ofp)
 	fprintf (ofp, "%s" , token);
 }
 
-static int format_mnemonic_or_declaration (char*token, int const column, FILE*ofp)
+static int format_mnemonic_or_declaration (char const*token, int const column, FILE*ofp)
 {
 	int min_column = is_declaration (token) ? DECLARATOR_COLUMN : MNEMONIC_COLUMN;
 	if (min_column <= column && is_declaration (token) && !is_addressable_declaration (token))
@@ -295,26 +406,37 @@ static int format_mnemonic_or_declaration (char*token, int const column, FILE*of
 	return chars_printed + fprintf (ofp, "%s%s" , lowercase_token, is_declaration (token) ? " " : "" );
 }
 
-static int format_argument (char*token, FILE*ofp)
+static int format_argument (char const*token, FILE*ofp)
 {
 	bool const needs_space = ',' == token[strlen (token) - 1];
 	char*maybe_space = needs_space? " " : "" ;
 
 	// TODO: parens around negative numbers
+	// TODO: normalize case of identifiers
 
 	return fprintf (ofp, "%s%s" , token, maybe_space);
 }
 
-static int format_label (char*token, bool may_need_newline, bool colon_allowed, FILE*ofp)
+static int format_label (char const*token, bool may_need_newline, bool colon_allowed, FILE*ofp)
 {
 	bool const has_colon = ':' == token[strlen (token) - 1];
-	bool const needs_colon = colon_allowed && !has_colon && !is_segment_label (token);
-	bool const needs_newline = may_need_newline && MNEMONIC_COLUMN < (strlen (token) - has_colon);
+	bool const needs_colon = colon_allowed
+		&& !has_colon
+		&& !is_segment_label (token);
+	bool const needs_newline = may_need_newline
+		&& MNEMONIC_COLUMN < (strlen (token) - has_colon);
 
 	char*maybe_colon = needs_colon? ":" : "" ;
 	char*maybe_newline = needs_newline? "\n" : "" ;
 
-	return ( !needs_newline) * fprintf (ofp, "%s%s%s" , token, maybe_colon, maybe_newline);
+	char*ntoken = normalize_label (token);
+	size_t column = ( !needs_newline) * fprintf (ofp, "%s%s%s"
+		, token
+		, maybe_colon
+		, maybe_newline);
+	free (ntoken); ntoken = 0;
+
+	return column;
 }
 
 /******************************************************************************
@@ -365,12 +487,15 @@ static bool format(char**token, int linenr, FILE*ofp)
 				if (ARGUMENT_COLUMN <= column)
 				{
 					fprintf(ofp, "\t" );
-				} else
-				{
+				} else {
 					column += pad_to_column (column, ARGUMENT_COLUMN, ofp);
 				}
 			}
 
+			if ( !fix_binary_notations (current))
+			{
+				return false;
+			}
 			column += format_argument (current, ofp);
 			state = seen_argument;
 			continue;
@@ -434,14 +559,14 @@ static bool format(char**token, int linenr, FILE*ofp)
 static void append(char***tokens, char*token)
 {
 	size_t ntokens = 0;
-	while ( (*tokens)[ntokens] )
+	while ( ( *tokens)[ntokens] )
 	{
 		ntokens += 1;
 	}
 	ntokens += 1;
 	*tokens = reallocarray ( *tokens, ntokens + 1, sizeof (char** ));
-	(*tokens)[ntokens - 1] = strdup (token);
-	(*tokens)[ntokens] = 0;
+	( *tokens)[ntokens - 1] = strdup (token);
+	( *tokens)[ntokens] = 0;
 }
 
 static void freetlist(char**tokens)
@@ -652,8 +777,7 @@ int main(int argc, char**argv)
 	{
 		ifp = stdin;
 		ofp = stdout;
-	} else
-	{
+	} else {
 		ifp = fopen (argv[1] , "r" );
 		outfilen = malloc (strlen (argv[1] ) + 4 + 1);
 		strcpy (outfilen, argv[1] );
@@ -672,12 +796,19 @@ int main(int argc, char**argv)
 
 		if ( !split_line_into_parts (input, &tokens))
 		{
-			printf( "token splitting failed on line %d:\n%s\n" , linenr, input);
+			printf ( "token splitting failed on line %d:\n%s\n" , linenr, input);
 			free (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
 			return 1;
 		}
-		format (tokens, linenr, ofp);
+		if ( !format (tokens, linenr, ofp))
+		{
+			printf ( "formatting failed on line %d\n%s\n", linenr, input);
+			free (input); input = 0;
+			freetlist (tokens); tokens = 0;
+			free (outfilen); outfilen = 0;
+			return 1;
+		}
 		linenr += 1;
 
 		free (input); input = 0;
