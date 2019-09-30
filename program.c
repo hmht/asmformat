@@ -571,6 +571,10 @@ static void append(char***tokens, char*token)
 
 static void freetlist(char**tokens)
 {
+	if ( !tokens)
+	{
+		return;
+	}
 	size_t i = 0;
 	while (tokens[i] )
 	{
@@ -797,7 +801,7 @@ int main(int argc, char**argv)
 		if ( !split_line_into_parts (input, &tokens))
 		{
 			printf ( "token splitting failed on line %d:\n%s\n" , linenr, input);
-			free (tokens); tokens = 0;
+			freetlist (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
 			return 1;
 		}
