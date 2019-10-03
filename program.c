@@ -697,7 +697,7 @@ static size_t argtokenizer(char const**line, char**token)
 
 	*token = malloc (strlen ( *line) + 1);
 
-	if ( is_comment ( *line) || is_macro ( *line))
+	if ( is_comment ( *line))
 	{
 		strcpy ( *token, *line);
 		*token = realloc ( *token, strlen ( *token) + 1);
