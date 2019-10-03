@@ -15,8 +15,5 @@ s/#[hH][iI][gG][hH]\s\+\(-[0-9]\+\)/#high (\1)/
 /^\$pg/d
 /^\$ingnorecase/d
 
-# translate includes
-s/[iI][nN][cC][lL][uU][dD][eE]\s\+\(\w\+\)\.[aA][sS][mM]/include \L\1.\UASM/
-
 # translate some compiler directives
 s/^\$pw\s*=\?\([0-9]\+\).*$/$pw 255/
