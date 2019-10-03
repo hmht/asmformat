@@ -9,17 +9,21 @@ function testproj() {
 	test -d $1 && rm -r $1
 	git clone $gitserver/prod/$1.git --depth 1
 	cd $1
+	make
+	mv $1bim.bin orig.bin
 	convallasm
 	# first test; does it output compilable code?
 	make
+	# second test: does it produce the same binary?
+	~/bin/radiff2 $1bim.bin orig.bin
 	cp -r . ../pass-1-$1
 	convallasm
 	cd ..
-	# second test: is it idempotent?
+	# third test: is it idempotent?
 	diff -u {pass-1-,}$1
 }
 
-gcc -g -o asmformat program.c -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined -lasan -DONLY_TABS
+gcc -g -o asmformat program.c -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined -lasan #-DONLY_TABS
 rm -rf test
 
 test -d test || mkdir test

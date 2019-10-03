@@ -284,21 +284,67 @@ static void lowercase_string(char*lower, char const*upper)
 	*lower = '\0';
 }
 
-static char*normalize_label(char const*label)
+static void normalize_label(char*dest, char const*label)
 {
 	if ( !label)
 	{
-		return 0;
+		return;
 	}
-	char*nlabel = strdup (label);
 	if (is_allcaps (label))
 	{
-		lowercase_string (nlabel, label);
+		lowercase_string (dest, label);
 	} else {
-		*nlabel = tolower ( *nlabel);
+		*dest = tolower ( *dest);
 	}
 
-	return nlabel;
+	return;
+}
+
+static void normalize_words_in(char*string_out)
+{
+	if ( !string_out)
+	{
+		return;
+	}
+	char word[strlen (string_out) + 1];
+	char*wp = word;
+	char*string_in = string_out;
+	bool is_in_string = false;
+	while (*string_in)
+	{
+		if ( *string_in == '\'' )
+		{
+			is_in_string = !is_in_string;
+		}
+		if ( !is_in_string && isWordChar (wp == word, *string_in))
+		{
+			*wp = *string_in;
+			wp += 1;
+			string_in += 1;
+		} else {
+			if (wp != word)
+			{
+				*wp = '\0';
+				char tmp = *string_in;
+				normalize_label (string_out, word);
+				string_out += strlen (word);
+				*string_out = tmp;
+				wp = word;
+			}
+			string_in += 1;
+			string_out += 1;
+		}
+	}
+	if (wp != word)
+	{
+		*wp = '\0';
+		if (strcmp ( "ASM" , word))
+		{
+			normalize_label (string_out, word);
+		}
+		string_out += strlen (word);
+		wp = word;
+	}
 }
 
 static bool fix_binary_literal_at(char*literal, int width)
@@ -412,9 +458,13 @@ static int format_argument (char const*token, FILE*ofp)
 	char*maybe_space = needs_space? " " : "" ;
 
 	// TODO: parens around negative numbers
-	// TODO: normalize case of identifiers
 
-	return fprintf (ofp, "%s%s" , token, maybe_space);
+	char*ntoken = strdup (token);
+	normalize_words_in (ntoken);
+
+	int printed = fprintf (ofp, "%s%s" , ntoken, maybe_space);
+	free (ntoken);
+	return printed;
 }
 
 static int format_label (char const*token, bool may_need_newline, bool colon_allowed, FILE*ofp)
@@ -429,9 +479,10 @@ static int format_label (char const*token, bool may_need_newline, bool colon_all
 	char*maybe_colon = needs_colon? ":" : "" ;
 	char*maybe_newline = needs_newline? "\n" : "" ;
 
-	char*ntoken = normalize_label (token);
+	char*ntoken = strdup (token);
+	normalize_label (ntoken, token);
 	size_t column = ( !needs_newline) * fprintf (ofp, "%s%s%s"
-		, token
+		, ntoken
 		, maybe_colon
 		, maybe_newline);
 	free (ntoken); ntoken = 0;
