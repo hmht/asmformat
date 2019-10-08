@@ -131,12 +131,12 @@ static bool is_segment_label(char const*token)
 	{
 		return false;
 	}
-	static char const*const addressable_declarator[] = {
+	static char const*const segment_label[] = {
 		"xseg",
 		"cseg",
 		0
 	};
-	for (char const*const*p = addressable_declarator ; *p ; p += 1)
+	for (char const*const*p = segment_label ; *p ; p += 1)
 	{
 		if (!strcasecmp ( *p, token))
 		{
