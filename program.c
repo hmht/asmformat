@@ -249,9 +249,10 @@ static int pad_to_column(int from, int to, FILE*ofp)
 {
 	if (from < to)
 	{
-		for (int needed_spaces = (to - from)
+		int column_diff = to-from;
+		for (int needed_spaces = column_diff
 			#if defined(ONLY_TABS)
-			/ INDENT_WIDTH + ( !! ((to - from) % INDENT_WIDTH))
+			/ INDENT_WIDTH + ( !! (column_diff % INDENT_WIDTH))
 			#endif
 			; needed_spaces
 			; needed_spaces -= 1)
@@ -537,7 +538,12 @@ static bool format(char**token, int linenr, FILE*ofp)
 			{
 				if (ARGUMENT_COLUMN <= column)
 				{
-					fprintf(ofp, "\t" );
+					column += (fprintf (ofp,
+					#ifdef ONLY_TABS
+					"\t" ), column % 8);
+					#else
+					" " ));
+					#endif
 				} else {
 					column += pad_to_column (column, ARGUMENT_COLUMN, ofp);
 				}
