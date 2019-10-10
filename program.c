@@ -857,14 +857,14 @@ int main(int argc, char**argv)
 
 		if ( !split_line_into_parts (input, &tokens))
 		{
-			printf ( "token splitting failed on line %d:\n%s\n" , linenr, input);
+			fprintf (stderr, "token splitting failed on line %d:\n%s\n" , linenr, input);
 			freetlist (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
 			return 1;
 		}
 		if ( !format (tokens, linenr, ofp))
 		{
-			printf ( "formatting failed on line %d\n%s\n", linenr, input);
+			fprintf (stderr, "formatting failed on line %d\n%s\n", linenr, input);
 			free (input); input = 0;
 			freetlist (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
