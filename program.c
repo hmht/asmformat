@@ -39,6 +39,8 @@
 #include<stdlib.h>
 #include<ctype.h>
 
+#include"token.h"
+
 /******************************************************************************
  * Section: configuration
  */
@@ -608,176 +610,6 @@ static bool format(char**token, int linenr, FILE*ofp)
 }
 
 /******************************************************************************
- * Section: array datastructure
- *
- * dynamiccally sized array
- */
-
-static void append(char***tokens, char*token)
-{
-	size_t ntokens = 0;
-	while ( ( *tokens)[ntokens] )
-	{
-		ntokens += 1;
-	}
-	ntokens += 1;
-	*tokens = reallocarray ( *tokens, ntokens + 1, sizeof (char** ));
-	( *tokens)[ntokens - 1] = strdup (token);
-	( *tokens)[ntokens] = 0;
-}
-
-static void freetlist(char**tokens)
-{
-	if ( !tokens)
-	{
-		return;
-	}
-	size_t i = 0;
-	while (tokens[i] )
-	{
-		free (tokens[i] ); tokens[i] = 0;
-		i += 1;
-	}
-	free (tokens); tokens = 0;
-}
-
-/******************************************************************************
- * Section: tokenizers
- *
- * grab easily-parsable parts from strings
- */
-
-static size_t wordtokenizer(char const**line, char**token)
-{
-	while ( **line == ' ' || **line == '\t' )
-	{
-		*line += 1;
-	}
-
-	*token = malloc (strlen ( *line) + 1);
-
-	if ( is_comment ( *line) || is_macro ( *line))
-	{
-		strcpy ( *token, *line);
-		*token = realloc ( *token, strlen ( *token) + 1);
-		*line += strlen ( *line);
-		return strlen ( *token);
-	}
-
-	if ( !isWordChar (true, **line))
-	{
-		if ( **line && **line != ' ' && **line != '\t' )
-		{
-			fprintf (stderr, "unexpected character '%c' while looking for label, mnemonic, or declaration\n" , **line );
-		}
-		free ( *token); *token = 0;
-		return 0;
-	}
-
-	char*w = *token;
-	while (isWordChar (false, **line))
-	{
-		*w = **line;
-		w += 1;
-		*line += 1;
-	}
-
-	if ( **line == ':' )
-	{
-		*w = **line;
-		w += 1;
-		*line += 1;
-	}
-
-	*w = '\0';
-	*token = realloc ( *token, strlen ( *token) + 1);
-	return strlen ( *token);
-}
-
-static size_t argtokenizer(char const**line, char**token)
-{
-	while ( **line == ' ' || **line == '\t' )
-	{
-		*line += 1;
-	}
-
-	*token = malloc (strlen ( *line) + 1);
-
-	if ( is_comment ( *line))
-	{
-		strcpy ( *token, *line);
-		*token = realloc ( *token, strlen ( *token) + 1);
-		*line += strlen ( *line);
-		return strlen ( *token);
-	}
-
-	char*last_nonwhitespace = *token - 1;
-	char*w = *token;
-	bool is_in_string = false;
-	while (true)
-	{
-		if ( ! **line)
-		{
-			break;
-		}
-		if ( !is_in_string
-			&& ( **line == ',' || is_comment ( *line)))
-		{
-			break;
-		}
-		if ( **line == '\'' )
-		{
-			is_in_string = !is_in_string;
-		}
-		*w = **line;
-		if ( **line != ' ' && **line != '\t' )
-		{
-			last_nonwhitespace = w;
-		}
-		w += 1;
-		*line += 1;
-	}
-
-	w = last_nonwhitespace + 1;
-
-	if ( **line == ',' )
-	{
-		*w = **line;
-		w += 1;
-		*line += 1;
-	}
-
-	*w = '\0';
-	*token = realloc ( *token, strlen ( *token) + 1);
-	return strlen ( *token);
-}
-
-static bool split_line_into_parts(char const*line, char***tokens)
-{
-	if ( ! line)
-	{
-		return false;
-	}
-	char* token;
-	size_t ( *tokenizer)(char const**, char** ) = &wordtokenizer;
-	while ( *line)
-	{
-		if ( !tokenizer ( &line, &token))
-		{
-			free (token); token = 0;
-			return !line;
-		}
-		if (is_mnemonic_or_declaration (token))
-		{
-			tokenizer = &argtokenizer;
-		}
-		append (tokens, token);
-		free (token); token = 0;
-	}
-	return true;
-}
-
-/******************************************************************************
  * Section: input handlers
  *
  * clean the input and cut into managable blocks
@@ -825,6 +657,22 @@ static bool readline(FILE*fp, char**line)
 	return !feof (fp);
 }
 
+static bool has_blob(char const*token)
+{
+	(void) token;
+	return false;
+}
+
+static bool opens_string(char c)
+{
+	return c == '\'';
+}
+
+static bool closes_string(char prev, char next)
+{
+	return next == '\'' && prev != '\\';
+}
+
 /******************************************************************************
  * Section: main
  */
@@ -845,20 +693,35 @@ int main(int argc, char**argv)
 		strcat (outfilen, ".frm" );
 		ofp = fopen (outfilen, "w" );
 	}
-	char*input = 0;
 	int linenr = 1;
 	bool more_lines;
 	do
 	{
+		char*input = 0;
 		more_lines = readline (ifp, &input);
-		if ( !more_lines && !input[0] ) break;
+		if ( !more_lines && !input[0] )
+		{
+			free (input); input = 0;
+			break;
+		}
 		char**tokens = malloc (sizeof (char* ));
 		*tokens = 0;
 
-		if ( !split_line_into_parts (input, &tokens))
+		struct syntax s = {
+			.is_comment = &is_comment,
+			.has_arguments = &is_mnemonic_or_declaration,
+			.is_word_char = &isWordChar,
+			.is_macro = &is_macro,
+			.has_blob = &has_blob,
+			.opens_string = &opens_string,
+			.closes_string = &closes_string,
+		};
+
+		if ( !split_line_into_parts (&s, input, &tokens))
 		{
 			fprintf (stderr, "token splitting failed on line %d:\n%s\n" , linenr, input);
-			freetlist (tokens); tokens = 0;
+			free (input); input = 0;
+			free_token_list (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
 			return 1;
 		}
@@ -866,14 +729,14 @@ int main(int argc, char**argv)
 		{
 			fprintf (stderr, "formatting failed on line %d\n%s\n", linenr, input);
 			free (input); input = 0;
-			freetlist (tokens); tokens = 0;
+			free_token_list (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
 			return 1;
 		}
 		linenr += 1;
 
 		free (input); input = 0;
-		freetlist (tokens); tokens = 0;
+		free_token_list (tokens); tokens = 0;
 	} while (more_lines);
 	fclose (ifp);
 	fclose (ofp);

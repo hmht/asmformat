@@ -15,7 +15,7 @@ function testproj() {
 	# first test; does it output compilable code?
 	make
 	# second test: does it produce the same binary?
-	~/bin/radiff2 $1bim.bin orig.bin
+	~/bin/radiff2 -szx $1bim.bin orig.bin
 	cp -r . ../pass-1-$1
 	convallasm
 	cd ..
@@ -23,7 +23,6 @@ function testproj() {
 	diff -u {pass-1-,}$1
 }
 
-gcc -g -o asmformat program.c -Wall -Wextra -pedantic -fsanitize=address -fsanitize=undefined -lasan #-DONLY_TABS
 rm -rf test
 
 test -d test || mkdir test
