@@ -309,7 +309,7 @@ static void normalize_words_in(char*string_out)
 	{
 		return;
 	}
-	char word[strlen (string_out) + 1];
+	char*word = malloc(strlen (string_out) + 1);
 	char*wp = word;
 	char*string_in = string_out;
 	bool is_in_string = false;
@@ -348,6 +348,7 @@ static void normalize_words_in(char*string_out)
 		string_out += strlen (word);
 		wp = word;
 	}
+	free (word); word = 0;
 }
 
 static bool fix_binary_literal_at(char*literal, int width)
@@ -447,12 +448,14 @@ static int format_mnemonic_or_declaration (char const*token, int const column, F
 	{
 		min_column = column + 1;
 	}
-	int const chars_printed = pad_to_column (column, min_column, ofp);
+	int chars_printed = pad_to_column (column, min_column, ofp);
 
-	char lowercase_token[strlen (token) + 1];
+	char*lowercase_token = malloc(strlen (token) + 1);
 	lowercase_string(lowercase_token, token);
 
-	return chars_printed + fprintf (ofp, "%s%s" , lowercase_token, is_declaration (token) ? " " : "" );
+	chars_printed += fprintf (ofp, "%s%s" , lowercase_token, is_declaration (token) ? " " : "" );
+	free (lowercase_token); lowercase_token = 0;
+	return chars_printed;
 }
 
 static int format_argument (char const*token, FILE*ofp)
@@ -628,7 +631,7 @@ static bool readline(FILE*fp, char**line)
 		switch (c)
 		{
 			case '\r':
-			case '':
+			case 0x1a:
 			case '\0':
 				continue;
 			break; case EOF:

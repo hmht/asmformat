@@ -17,7 +17,7 @@ static void append(char***tokens, char*token)
 		ntokens += 1;
 	}
 	ntokens += 1;
-	*tokens = reallocarray ( *tokens, ntokens + 1, sizeof (char** ));
+	*tokens = realloc ( *tokens, (ntokens + 1) * sizeof (char** ));
 	( *tokens)[ntokens - 1] = strdup (token);
 	( *tokens)[ntokens] = 0;
 }
