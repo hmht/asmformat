@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS+=-g
 CFLAGS+=-Wall -Wextra -pedantic
-CFLAGS+=-fsanitize=address -fsanitize=undefined -lasan
+#CFLAGS+=-fsanitize=address -fsanitize=undefined -lasan
 CFLAGS+=-DONLY_TABS
 
 asmformat: program.c token.o
