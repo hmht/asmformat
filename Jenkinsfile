@@ -5,11 +5,11 @@ pipeline {
 		stage('Build') {
 			parallel {
 				stage('Windows build') {
-					agent { label "windows" }
+					agent { label "windows && make && gcc" }
 					steps { bat "make" }
 				}
 				stage('Linux build') {
-					agent { label "linux" }
+					agent { label "linux && make && gcc" }
 					steps { sh "make" }
 				}
 			}
