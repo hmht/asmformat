@@ -691,10 +691,21 @@ int main(int argc, char**argv)
 		ofp = stdout;
 	} else {
 		ifp = fopen (argv[1] , "r" );
+		if (!ifp) {
+			fprintf (stderr, "could not open %s\n", argv[1]);
+			return 1;
+		}
 		outfilen = malloc (strlen (argv[1] ) + 4 + 1);
 		strcpy (outfilen, argv[1] );
 		strcat (outfilen, ".frm" );
+		// guard for overwriting file?
 		ofp = fopen (outfilen, "w" );
+		if (!ifp) {
+			fprintf (stderr, "could not open %s\n", outfilen);
+			fclose (ifp); ifp = 0;
+			free (outfilen); outfilen = 0;
+			return 1;
+		}
 	}
 	int linenr = 1;
 	bool more_lines;
@@ -741,8 +752,8 @@ int main(int argc, char**argv)
 		free (input); input = 0;
 		free_token_list (tokens); tokens = 0;
 	} while (more_lines);
-	fclose (ifp);
-	fclose (ofp);
+	fclose (ifp); ifp = 0;
+	fclose (ofp); ofp = 0;
 	if (outfilen)
 	{
 		if (rename (outfilen, argv[1] ))
