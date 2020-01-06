@@ -155,6 +155,7 @@ static bool is_addressable_declaration(char const*token)
 		return false;
 	}
 	static char const*const addressable_declarator[] = {
+		"include",
 		"ds",
 		"db",
 		"dw",
@@ -181,7 +182,6 @@ static bool is_declaration(char const*token)
 		return true;
 	}
 	static char const*const declarators[] = {
-		"include",
 		"bit",
 		"data",
 		"xdata",
