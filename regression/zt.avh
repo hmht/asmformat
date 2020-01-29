@@ -1,0 +1,9 @@
+	extern	zeroTensiometerRoutine(code)
+	extern	nih_print(code)	; can reuse ton's code?
+	extern	forcecursor(code)
+	extern	tensionmeters_calibration_inital_position(code)
+	extern	printarrow(code)
+	extern	exclam(code)
+	extern	tensionmeters_calibration_nag_about_rod(code)
+	extern	tensionmeters_calibration_switch_side(code)
+	extern	tensionmeters_calibration_send_mmi_command(code)

@@ -190,6 +190,8 @@ static bool is_declaration(char const*token)
 		"code",
 		"org",
 		"end",
+		"public",
+		"extern",
 		0
 	};
 	for (char const*const*p = declarators ; *p ; p += 1)
