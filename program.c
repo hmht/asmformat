@@ -38,6 +38,7 @@
 #include<string.h>
 #include<stdlib.h>
 #include<ctype.h>
+#include<unistd.h>
 
 #include"token.h"
 
@@ -756,6 +757,7 @@ int main(int argc, char**argv)
 	fclose (ofp); ofp = 0;
 	if (outfilen)
 	{
+		unlink(argv[1]);
 		if (rename (outfilen, argv[1] ))
 		{
 			#include<errno.h>
