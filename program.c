@@ -189,7 +189,6 @@ static bool is_declaration(char const*token)
 		"equ",
 		"code",
 		"org",
-		"end",
 		"public",
 		"extern",
 		0
@@ -235,7 +234,9 @@ static bool is_mnemonic_or_declaration(char const*token)
 	{
 		return false;
 	}
-	return is_declaration (token) || is_mnemonic (token);
+	return is_declaration (token)
+		|| is_mnemonic (token)
+		|| !strcasecmp (token, "end");
 }
 
 static bool isWordChar(bool first, char c)
@@ -456,7 +457,22 @@ static int format_mnemonic_or_declaration (char const*token, int const column, F
 	char*lowercase_token = malloc(strlen (token) + 1);
 	lowercase_string(lowercase_token, token);
 
-	chars_printed += fprintf (ofp, "%s%s" , lowercase_token, is_declaration (token) ? " " : "" );
+	chars_printed += fprintf (ofp, "%s" , lowercase_token);
+	if ( is_declaration (token) )
+	{
+		fprintf (ofp, "%c",
+			#ifdef ONLY_TABS
+			'\t'
+			#else
+			' '
+			#endif
+			);
+		chars_printed += 1
+			#ifdef ONLY_TABS
+			* TAB_WIDTH
+			#endif
+			;
+	}
 	free (lowercase_token); lowercase_token = 0;
 	return chars_printed;
 }
