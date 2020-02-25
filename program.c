@@ -40,7 +40,8 @@
 #include<ctype.h>
 #include<unistd.h>
 
-#include"token.h"
+#include"libasm8051/token.h"
+#include"libasm8051/syntax.h"
 
 /******************************************************************************
  * Section: configuration
@@ -80,172 +81,6 @@
 #		endif
 #	endif
 #endif
-
-/******************************************************************************
- * Section: classifiers
- *
- * figure out what kind of token you have
- */
-
-static bool is_allcaps(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-
-	while ( *token)
-	{
-		if ( 'a' <= *token && *token <= 'z' )
-		{
-			return false;
-		}
-		token += 1;
-	}
-	return true;
-}
-
-static bool is_newline(char const*token)
-{
-	return !token;
-}
-
-static bool is_comment(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-	return token[0] == ';' ;
-}
-
-static bool is_macro(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-	return token[0] == '$' ;
-}
-
-static bool is_segment_label(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-	static char const*const segment_label[] = {
-		"xseg",
-		"cseg",
-		0
-	};
-	for (char const*const*p = segment_label ; *p ; p += 1)
-	{
-		if (!strcasecmp ( *p, token))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool is_addressable_declaration(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-	static char const*const addressable_declarator[] = {
-		"include",
-		"ds",
-		"db",
-		"dw",
-		0
-	};
-	for (char const*const*p = addressable_declarator ; *p ; p += 1)
-	{
-		if (!strcasecmp ( *p, token))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool is_declaration(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-	if (is_addressable_declaration (token))
-	{
-		return true;
-	}
-	static char const*const declarators[] = {
-		"bit",
-		"data",
-		"xdata",
-		"equ",
-		"code",
-		"org",
-		"public",
-		"extern",
-		0
-	};
-	for (char const*const*p = declarators ; *p ; p += 1)
-	{
-		if ( !strcasecmp ( *p, token))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool is_mnemonic(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-	static char const*const mnemonics[] = {
-		"acall", "addc", "add", "ajmp", "anl", "cjne", "call", "clr",
-		"cpl", "da", "dec", "div", "djnz", "inc", "jbc", "jb", "jc",
-		"jmp", "jnb", "jnc", "jz", "jnz", "lcall", "ljmp", "mov",
-		"movc", "movx", "mul", "nop", "orl", "pop", "push", "reti",
-		"ret", "xchd", "xch", "xrl", "rlc", "rl", "rrc", "rr", "setb",
-		"sjmp", "subb", "swap",
-		0
-	};
-	for (char const*const*p = mnemonics ; *p ; p += 1)
-	{
-		if ( !strcasecmp ( *p, token))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool is_mnemonic_or_declaration(char const*token)
-{
-	if ( !token)
-	{
-		return false;
-	}
-	return is_declaration (token)
-		|| is_mnemonic (token)
-		|| !strcasecmp (token, "end");
-}
-
-static bool isWordChar(bool first, char c)
-{
-	return ( 'A' <= c && c <= 'Z' )
-		|| ( 'a' <= c && c <= 'z' )
-		|| c == '_' || c == '?'
-		|| (first? false : ( '0' <= c && c <= '9' ));
-}
 
 /******************************************************************************
  * Section: formatter helpers
@@ -323,7 +158,7 @@ static void normalize_words_in(char*string_out)
 		{
 			is_in_string = !is_in_string;
 		}
-		if ( !is_in_string && isWordChar (wp == word, *string_in))
+		if ( !is_in_string && is_word_char (wp == word, *string_in))
 		{
 			*wp = *string_in;
 			wp += 1;
@@ -615,84 +450,21 @@ static bool format(char**token, int linenr, FILE*ofp)
 		switch (state)
 		{
 		break; case seen_start:
-			fprintf (stderr, "expected label, mnemonic, declaration, or comment.\n");
+			fprintf (stderr, "expected label, mnemonic, declaration, or comment as first token.\n");
 		break; case seen_label:
-			fprintf (stderr, "expected mnemonic, declaration, or comment.\n");
+			fprintf (stderr, "expected mnemonic, declaration, or comment after a label (\"%s\").\n", current-1);
 		break; case seen_mnemonic_or_declaration:
-		case seen_argument:
-			fprintf (stderr, "expected argument or comment\n");
+			fprintf (stderr, "expected argument or comment after mnemonic/declaration \"%s\"\n", current-1);
+		break; case seen_argument:
+			fprintf (stderr, "expected argument or comment after argument \"%s\"\n", current-1);
 		break; case seen_comment:
-			fprintf (stderr, "token parser error\n");
+			fprintf (stderr, "stray token after comment \"%s\"\n", current-1);
 		break; case seen_newline:
 		default:
 			fprintf (stderr, "token consumer error (seen=%d)\n" , state);
 		}
 		return false;
 	}
-}
-
-/******************************************************************************
- * Section: input handlers
- *
- * clean the input and cut into managable blocks
- */
-
-static bool readline(FILE*fp, char**line)
-{
-	*line = malloc (80);
-	char*p = *line;
-	char*end_of_buffer = *line + 79;
-	char*last_nonwhitespace = p - 1;
-
-	while ( !feof (fp))
-	{
-		int c = fgetc (fp);
-		switch (c)
-		{
-			case '\r':
-			case 0x1a:
-			case '\0':
-				continue;
-			break; case EOF:
-			case '\n':
-				last_nonwhitespace[1] = '\0';
-				*line = realloc ( *line, strlen ( *line) + 1);
-				return !feof (fp);
-		}
-		if (c != ' ' && c != '\t' )
-		{
-			last_nonwhitespace = p;
-		}
-		*p = c;
-		p += 1;
-		if (p == end_of_buffer)
-		{
-			size_t np = p - *line;
-			size_t nlnw = last_nonwhitespace - *line;
-			*line = realloc ( *line, np + 80);
-			p = *line + np;
-			end_of_buffer = *line + np + 79;
-			last_nonwhitespace = *line + nlnw;
-		}
-	}
-	last_nonwhitespace[1] = '\0';
-	return !feof (fp);
-}
-
-static bool has_blob(char const*token)
-{
-	(void) token;
-	return false;
-}
-
-static bool opens_string(char c)
-{
-	return c == '\'';
-}
-
-static bool closes_string(char prev, char next)
-{
-	return next == '\'' && prev != '\\';
 }
 
 /******************************************************************************
@@ -719,7 +491,7 @@ int main(int argc, char**argv)
 		strcat (outfilen, ".frm" );
 		// guard for overwriting file?
 		ofp = fopen (outfilen, "w" );
-		if (!ifp) {
+		if (!ofp) {
 			fprintf (stderr, "could not open %s\n", outfilen);
 			fclose (ifp); ifp = 0;
 			free (outfilen); outfilen = 0;
@@ -730,6 +502,8 @@ int main(int argc, char**argv)
 	bool more_lines;
 	do
 	{
+		#include"libasm8051/readline.h"
+		#include"libasm8051/strarray.h"
 		char*input = 0;
 		more_lines = readline (ifp, &input);
 		if ( !more_lines && !input[0] )
@@ -740,21 +514,11 @@ int main(int argc, char**argv)
 		char**tokens = malloc (sizeof (char* ));
 		*tokens = 0;
 
-		struct syntax s = {
-			.is_comment = &is_comment,
-			.has_arguments = &is_mnemonic_or_declaration,
-			.is_word_char = &isWordChar,
-			.is_macro = &is_macro,
-			.has_blob = &has_blob,
-			.opens_string = &opens_string,
-			.closes_string = &closes_string,
-		};
-
-		if ( !split_line_into_parts (&s, input, &tokens))
+		if ( !split_line_into_parts (input, &tokens))
 		{
 			fprintf (stderr, "token splitting failed on line %d:\n%s\n" , linenr, input);
 			free (input); input = 0;
-			free_token_list (tokens); tokens = 0;
+			strarray_free (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
 			return 1;
 		}
@@ -762,14 +526,14 @@ int main(int argc, char**argv)
 		{
 			fprintf (stderr, "formatting failed on line %d\n%s\n", linenr, input);
 			free (input); input = 0;
-			free_token_list (tokens); tokens = 0;
+			strarray_free (tokens); tokens = 0;
 			free (outfilen); outfilen = 0;
 			return 1;
 		}
 		linenr += 1;
 
 		free (input); input = 0;
-		free_token_list (tokens); tokens = 0;
+		strarray_free (tokens); tokens = 0;
 	} while (more_lines);
 	fclose (ifp); ifp = 0;
 	fclose (ofp); ofp = 0;

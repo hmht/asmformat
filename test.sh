@@ -1,5 +1,5 @@
 set -e
-readonly gitserver="http://192.168.0.235:3000"
+readonly gitserver="http://forge.dev.hollandmechanics.com."
 
 function convallasm() {
 find . -name '*.ASM' -exec ../../asmformat \{\} \;

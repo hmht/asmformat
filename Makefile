@@ -4,7 +4,7 @@ CFLAGS+=-Wall -Wextra -pedantic
 #CFLAGS+=-fsanitize=address -fsanitize=undefined -lasan
 CFLAGS+=-DONLY_TABS
 
-asmformat: program.c token.o
+asmformat: program.c libasm8051/token.o libasm8051/strarray.o libasm8051/avocet.o libasm8051/readline.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 tests: asmformat
