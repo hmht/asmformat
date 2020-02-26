@@ -1,20 +1,13 @@
 #include"delegate.h"
 #include<stdlib.h>
 #include<stdio.h>
-extern bool callback_tokens(char const*filename, bool (*callback)(char**tokens, int linenr, void*data), void*data)
+extern bool callback_tokens(FILE*file, bool (*callback)(char**tokens, int linenr, void*data), void*data)
 {
-	#include<stdio.h>
-	#include"readline.h"
-	FILE*file = fopen (filename, "r");
-	if ( !file)
-	{
-		fprintf (stderr, "could not open %s\n", filename);
-		return false;
-	}
 	int linenr = 1;
 	bool more_lines;
 	do
 	{
+		#include"readline.h"
 		#include"token.h"
 		#include"strarray.h"
 		char*input = 0;
@@ -144,9 +137,9 @@ static bool lex(char**token, int linenr, void*vc)
 	return true;
 }
 
-extern bool callback_tagged_token(char const*filename, bool (*callback)(struct tagged_token const*tt, int linenr, void*data), void*data)
+extern bool callback_tagged_token(FILE*file, bool (*callback)(struct tagged_token const*tt, int linenr, void*data), void*data)
 {
 	struct lex_callback c = { callback, data };
-	return callback_tokens(filename, lex, &c);
+	return callback_tokens(file, lex, &c);
 }
 
