@@ -1,0 +1,3 @@
+[submodule "libasm8051"]
+	path = libasm8051
+	url = ../libasm8051/

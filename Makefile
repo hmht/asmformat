@@ -11,7 +11,7 @@ tests: asmformat
 	sh test.sh
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $^
+	$(CC) $(CFLAGS) -c $^ -o $@
 
 clean:
 	-rm -r *.o asmformat tests
