@@ -171,8 +171,7 @@ extern bool is_word_char(bool first, char c)
 
 extern bool has_blob(char const*token)
 {
-	(void) token;
-	return false;
+	return token[0] == '$';
 }
 
 extern bool opens_string(char c)
