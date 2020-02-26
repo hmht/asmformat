@@ -43,9 +43,20 @@ extern bool callback_tokens(FILE*file, bool (*callback)(char**tokens, int linenr
 }
 
 struct lex_callback {
-	bool (*callback)(struct tagged_token const*tt, int linenr, void*data);
+	bool (*callback)(struct addressed const*a, void*data);
+	struct addressed*last;
 	void*data;
 };
+
+static bool dispatch_addressed(bool (*callback)(struct addressed const*a, void*data), struct addressed*a, void*data)
+{
+	#include"strarray.h"
+	callback (a, data);
+	strarray_free (a->label); a->label = 0;
+	strarray_free (a->argument); a->argument = 0;
+	strarray_free (a->comment); a->comment = 0;
+	free (a->mnemonic_or_declaration); a->mnemonic_or_declaration = 0;
+}
 
 static bool lex(char**token, int linenr, void*vc)
 {
@@ -63,18 +74,18 @@ static bool lex(char**token, int linenr, void*vc)
 	while (token[i])
 	{
 		#include"syntax.h"
+		#include"strarray.h"
 		char*current = token[i];
 		i += 1;
 		if (state < seen_newline && is_newline (current))
 		{
-			struct tagged_token const tt = { newline, current };
-			c->callback(&tt, linenr, c->data);
 			state = seen_newline;
 			continue;
 		}
 		if (state <= seen_comment && is_comment (current))
 		{
-			struct tagged_token const tt = {comment, current};
+			c->last->line_to = linenr;
+			strarray_append(&c->last->comment, current);
 			state = seen_comment;
 			continue;
 		}
@@ -84,24 +95,33 @@ static bool lex(char**token, int linenr, void*vc)
 			&& !is_comment (current)
 			&& !is_mnemonic_or_declaration (current))
 		{
-			struct tagged_token const tt = {argument, current};
-			c->callback (&tt, linenr, c->data);
+			c->last->line_to = linenr;
+			strarray_append(&c->last->argument, current);
 			state = seen_argument;
 			continue;
 		}
 		if (state < seen_mnemonic_or_declaration
 			&& is_mnemonic_or_declaration (current))
 		{
-			struct tagged_token const tt = {mnemonic_or_declaration, current};
-			c->callback (&tt, linenr, c->data);
+			if (c->last->mnemonic_or_declaration) {
+				dispatch_addressed(c->callback, c->last, c->data);
+				c->last->line_from = linenr;
+			}
+			c->last->line_to = linenr;
+			c->last->mnemonic_or_declaration = strdup(current);
 			state = seen_mnemonic_or_declaration;
 			continue;
 		}
 		if (state < seen_label
 			&& has_blob (current))
 		{
-			struct tagged_token const tt = {blob, current};
-			c->callback (&tt, linenr, c->data);
+			if (c->last->mnemonic_or_declaration) {
+				dispatch_addressed(c->callback, c->last, c->data);
+				c->last->line_from = linenr;
+			}
+			c->last->line_to = linenr;
+			c->last->mnemonic_or_declaration = strdup(current);
+			state = seen_mnemonic_or_declaration;
 			continue;
 		}
 		if (state < seen_label
@@ -109,8 +129,12 @@ static bool lex(char**token, int linenr, void*vc)
 			&& !is_comment (current)
 			&& !is_mnemonic_or_declaration (current))
 		{
-			struct tagged_token const tt = {label, current};
-			c->callback (&tt, linenr, c->data);
+			if (c->last->mnemonic_or_declaration) {
+				dispatch_addressed(c->callback, c->last, c->data);
+				c->last->line_from = linenr;
+			}
+			c->last->line_to = linenr;
+			strarray_append (&c->last->label, current);
 			state = seen_label;
 			continue;
 		}
@@ -137,9 +161,14 @@ static bool lex(char**token, int linenr, void*vc)
 	return true;
 }
 
-extern bool callback_tagged_token(FILE*file, bool (*callback)(struct tagged_token const*tt, int linenr, void*data), void*data)
+extern bool callback_tagged_token(FILE*file, bool (*callback)(struct addressed const*a, void*data), void*data)
 {
-	struct lex_callback c = { callback, data };
-	return callback_tokens(file, lex, &c);
+	struct addressed a = {};
+	struct lex_callback c = { callback, &a, data };
+	bool const ret = callback_tokens(file, lex, &c);
+	if (ret && c.last->mnemonic_or_declaration) {
+		return dispatch_addressed (callback, c.last, data);
+	}
+	return ret;
 }
 
