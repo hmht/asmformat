@@ -5,7 +5,7 @@
 extern void strarray_append(char***array, char*value)
 {
 	size_t nvalues = 0;
-	while ( ( *array)[nvalues] )
+	while ( *array && ( *array)[nvalues] )
 	{
 		nvalues += 1;
 	}
