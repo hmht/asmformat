@@ -58,6 +58,7 @@ static bool dispatch_addressed(bool (*callback)(struct addressed const*a, void*d
 	free (a->mnemonic_or_declaration); a->mnemonic_or_declaration = 0;
 }
 
+#include<string.h>
 static bool lex(char**token, int linenr, void*vc)
 {
 	struct lex_callback const*c = vc;

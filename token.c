@@ -88,13 +88,6 @@ static size_t argtokenizer(char const**line, char**token)
 
 	w = last_nonwhitespace + 1;
 
-	if ( **line == ',' )
-	{
-		*w = **line;
-		w += 1;
-		*line += 1;
-	}
-
 	*w = '\0';
 	*token = realloc ( *token, strlen ( *token) + 1);
 	return strlen ( *token);
@@ -142,7 +135,11 @@ extern bool split_line_into_parts(char const*line, char***tokens)
 			free (token); token = 0;
 			return ! *line;
 		}
-		if (has_arguments (token))
+		if (tokenizer == argtokenizer)
+		{
+			line += *line == ',' ;
+		}
+		else if (has_arguments (token))
 		{
 			tokenizer = &argtokenizer;
 		}
