@@ -1,67 +1,58 @@
 #include"delegate.h"
 #include<stdlib.h>
 #include<stdio.h>
+static bool
+read_tokens(FILE*file, char***tokens)
+{
+	#include"readline.h"
+	#include"token.h"
+	#include"strarray.h"
+	char*input = 0;
+	bool const more_lines = readline (file, &input);
+	if ( !more_lines && input && !input[0] )
+	{
+		free (input); input = 0;
+		return false;
+	}
+	if ( !split_line_into_parts (input, tokens))
+	{
+		fprintf (stderr, "token splitting failed on:\n%s\n" , input);
+		free (input); input = 0;
+		return false;
+	}
+	free (input); input = 0;
+	return more_lines;
+}
+
 extern bool callback_tokens(FILE*file, bool (*callback)(char**tokens, int linenr, void*data), void*data)
 {
 	int linenr = 1;
-	bool more_lines;
-	do
+	bool more_lines = true;
+	while (more_lines)
 	{
-		#include"readline.h"
-		#include"token.h"
 		#include"strarray.h"
-		char*input = 0;
-		more_lines = readline (file, &input);
-		if ( !more_lines && !input[0] )
-		{
-			free (input); input = 0;
-			break;
-		}
 		char**tokens = malloc (sizeof (char* ));
-		*tokens = 0;
-		if ( !split_line_into_parts (input, &tokens))
+		if (!tokens)
 		{
-			fprintf (stderr, "token splitting failed on line %d:\n%s\n" , linenr, input);
-			free (input); input = 0;
-			strarray_free (tokens); tokens = 0;
-			fclose (file); file = 0;
 			return false;
 		}
+		*tokens = 0;
+		more_lines = read_tokens (file, &tokens);
 		if (!callback(tokens, linenr, data))
 		{
-			free (input); input = 0;
 			strarray_free (tokens); tokens = 0;
-			fclose (file); file = 0;
 			return false;
 		}
 		linenr += 1;
-		free (input); input = 0;
 		strarray_free (tokens); tokens = 0;
-	} while (more_lines);
-	fclose (file); file = 0;
+	}
 	return true;
 }
 
-struct lex_callback {
-	bool (*callback)(struct addressed const*a, void*data);
-	struct addressed*last;
-	void*data;
-};
-
-static bool dispatch_addressed(bool (*callback)(struct addressed const*a, void*data), struct addressed*a, void*data)
-{
-	#include"strarray.h"
-	callback (a, data);
-	strarray_free (a->label); a->label = 0;
-	strarray_free (a->argument); a->argument = 0;
-	strarray_free (a->comment); a->comment = 0;
-	free (a->mnemonic_or_declaration); a->mnemonic_or_declaration = 0;
-}
-
 #include<string.h>
-static bool lex(char**token, int linenr, void*vc)
+static bool
+lex(char**token, int linenr, struct addressed*out)
 {
-	struct lex_callback const*c = vc;
 	enum state
 	{
 		seen_start,
@@ -71,6 +62,8 @@ static bool lex(char**token, int linenr, void*vc)
 		seen_comment,
 		seen_newline,
 	} state = seen_start;
+	out->line_from = linenr;
+	out->line_to = linenr;
 	int i = 0;
 	while (token[i])
 	{
@@ -85,8 +78,7 @@ static bool lex(char**token, int linenr, void*vc)
 		}
 		if (state <= seen_comment && is_comment (current))
 		{
-			c->last->line_to = linenr;
-			strarray_append(&c->last->comment, current);
+			strarray_append(&out->comment, current);
 			state = seen_comment;
 			continue;
 		}
@@ -96,32 +88,21 @@ static bool lex(char**token, int linenr, void*vc)
 			&& !is_comment (current)
 			&& !is_mnemonic_or_declaration (current))
 		{
-			c->last->line_to = linenr;
-			strarray_append(&c->last->argument, current);
+			strarray_append(&out->argument, current);
 			state = seen_argument;
 			continue;
 		}
 		if (state < seen_mnemonic_or_declaration
 			&& is_mnemonic_or_declaration (current))
 		{
-			if (c->last->mnemonic_or_declaration) {
-				dispatch_addressed(c->callback, c->last, c->data);
-				c->last->line_from = linenr;
-			}
-			c->last->line_to = linenr;
-			c->last->mnemonic_or_declaration = strdup(current);
+			out->mnemonic_or_declaration = strdup(current);
 			state = seen_mnemonic_or_declaration;
 			continue;
 		}
 		if (state < seen_label
 			&& has_blob (current))
 		{
-			if (c->last->mnemonic_or_declaration) {
-				dispatch_addressed(c->callback, c->last, c->data);
-				c->last->line_from = linenr;
-			}
-			c->last->line_to = linenr;
-			c->last->mnemonic_or_declaration = strdup(current);
+			out->mnemonic_or_declaration = strdup(current);
 			state = seen_mnemonic_or_declaration;
 			continue;
 		}
@@ -130,12 +111,7 @@ static bool lex(char**token, int linenr, void*vc)
 			&& !is_comment (current)
 			&& !is_mnemonic_or_declaration (current))
 		{
-			if (c->last->mnemonic_or_declaration) {
-				dispatch_addressed(c->callback, c->last, c->data);
-				c->last->line_from = linenr;
-			}
-			c->last->line_to = linenr;
-			strarray_append (&c->last->label, current);
+			strarray_append (&out->label, current);
 			state = seen_label;
 			continue;
 		}
@@ -146,13 +122,13 @@ static bool lex(char**token, int linenr, void*vc)
 		break; case seen_start:
 			fprintf (stderr, "expected label, mnemonic, declaration, or comment as first token.\n");
 		break; case seen_label:
-			fprintf (stderr, "expected mnemonic, declaration, or comment after a label (\"%s\").\n", current[-1]);
+			fprintf (stderr, "expected mnemonic, declaration, or comment after a label (\"%s\").\n", token[i-1]);
 		break; case seen_mnemonic_or_declaration:
-			fprintf (stderr, "expected argument or comment after mnemonic/declaration \"%s\"\n", current[-1]);
-		case seen_argument:
-			fprintf (stderr, "expected argument or comment after argument \"%s\"\n", current[-1]);
+			fprintf (stderr, "expected argument or comment after mnemonic/declaration \"%s\"\n", token[i-1]);
+		break; case seen_argument:
+			fprintf (stderr, "expected argument or comment after argument \"%s\"\n", token[i-1]);
 		break; case seen_comment:
-			fprintf (stderr, "stray token after comment \"%s\"\n", current[-1]);
+			fprintf (stderr, "stray token after comment \"%s\"\n", token[i-1]);
 		break; case seen_newline:
 		default:
 			fprintf (stderr, "token consumer error (seen=%d)\n" , state);
@@ -162,14 +138,79 @@ static bool lex(char**token, int linenr, void*vc)
 	return true;
 }
 
-extern bool callback_tagged_token(FILE*file, bool (*callback)(struct addressed const*a, void*data), void*data)
+static bool
+read_lex(FILE*file, int linenr, struct addressed*a)
 {
-	struct addressed a = {};
-	struct lex_callback c = { callback, &a, data };
-	bool const ret = callback_tokens(file, lex, &c);
-	if (ret && c.last->mnemonic_or_declaration) {
-		return dispatch_addressed (callback, c.last, data);
+	#include"strarray.h"
+	char**token = {0};
+	bool more_lines = read_tokens(file, &token);
+	if (token)
+	{
+		more_lines &= lex (token, linenr, a);
+		strarray_free (token); token = 0;
 	}
-	return ret;
+	return more_lines;
 }
 
+extern void
+free_addressed(struct addressed*a)
+{
+	#include"strarray.h"
+	strarray_free (a->label); a->label = 0;
+	strarray_free (a->argument); a->argument = 0;
+	strarray_free (a->comment); a->comment = 0;
+	free (a->mnemonic_or_declaration); a->mnemonic_or_declaration = 0;
+}
+
+extern bool
+callback_lexed_line(FILE*file, bool (*callback)(struct addressed const*, void*), void*data)
+{
+	bool rv = true;
+	bool more_lines = true;
+	int linenr = 1;
+	while (rv && more_lines)
+	{
+		struct addressed a = {0};
+		more_lines = read_lex (file, linenr, &a);
+		if (!more_lines
+			&& !a.label
+			&& !a.mnemonic_or_declaration
+			&& !a.argument
+			&& !a.comment)
+		{
+			break;
+		}
+		rv &= callback (&a, data);
+		free_addressed (&a);
+		linenr += 1;
+	}
+	return rv;
+}
+
+extern bool
+callback_addressed(FILE*file, bool (*callback)(struct addressed const*, void*), void*data)
+{
+	bool rv = true;
+	bool more_lines = true;
+	int linenr = 1;
+	struct addressed a = {0};
+	while (rv && more_lines)
+	{
+		struct addressed l = {0};
+		more_lines = read_lex (file, linenr, &l);
+		if (a.mnemonic_or_declaration
+			&& (l.mnemonic_or_declaration || l.label))
+		{
+			rv &= callback (&a, data);
+			free_addressed (&a);
+			memcpy(&l, &a, sizeof l);
+		}
+		a.line_to = linenr;
+	}
+	if (rv && a.mnemonic_or_declaration)
+	{
+		rv &= callback (&a, data);
+		free_addressed (&a);
+	}
+	return rv;
+}

@@ -8,5 +8,7 @@ struct addressed {
 	char**argument;
 	char**comment;
 };
+
 extern bool callback_tokens(FILE*file, bool (*callback)(char**tokens, int linenr, void*data), void*data);
-extern bool callback_tagged_token(FILE*file, bool (*callback)(struct addressed const*a, void*data), void*data);
+extern bool callback_lexed_line(FILE*file, bool (*callback)(struct addressed const*, void*), void*data);
+extern bool callback_addressed(FILE*file, bool (*callback)(struct addressed const*, void*), void*data);
