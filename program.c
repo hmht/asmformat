@@ -64,7 +64,7 @@
 #endif
 
 #ifndef COMMENT_COLUMN
-#	define COMMENT_COLUMN (ARGUMENT_COLUMN + 3 * INDENT_WIDTH)
+#	define COMMENT_COLUMN (ARGUMENT_COLUMN + (3 * INDENT_WIDTH))
 #endif
 
 // TODO: tabs for some alignment, spaces for other alignment
@@ -80,11 +80,27 @@
 #			error "comment column must be multiple of tab width"
 #		endif
 #	endif
+#	define	INDENT_CHAR '\t'
+#	define	INDENT_STR "\t"
+#else
+#	define	INDENT_CHAR ' '
+#	define	INDENT_STR " "
 #endif
 
 /******************************************************************************
  * Section: formatter helpers
  */
+
+static int
+insert_semantic_whitespace(int column, FILE*ofp)
+{
+	fprintf (ofp, INDENT_STR);
+	#if defined (ONLY_TABS)
+	return TAB_WIDTH - (column % TAB_WIDTH);
+	#else
+	return 1;
+	#endif
+}
 
 static int pad_to_column(int from, int to, FILE*ofp)
 {
@@ -98,12 +114,7 @@ static int pad_to_column(int from, int to, FILE*ofp)
 			; needed_spaces
 			; needed_spaces -= 1)
 		{
-			fprintf (ofp,
-			#if defined(ONLY_TABS)
-				"\t" );
-			#else
-				" " );
-			#endif
+			fprintf (ofp, INDENT_STR );
 		}
 	}
 	return
@@ -184,8 +195,6 @@ static void normalize_words_in(char*string_out)
 		{
 			normalize_label (string_out, word);
 		}
-		string_out += strlen (word);
-		wp = word;
 	}
 	free (word); word = 0;
 }
@@ -271,200 +280,117 @@ static bool fix_binary_notations(char*label)
  * write out tokens with the desired formatting
  */
 
-static void format_comment(char const*token, int column, FILE*ofp)
+static int format_mnemonic_or_declaration (char const*token, FILE*ofp)
 {
-	if (column != 0)
-	{
-		(void) pad_to_column (column, COMMENT_COLUMN, ofp);
-	}
-	fprintf (ofp, "%s" , token);
-}
-
-static int format_mnemonic_or_declaration (char const*token, int const column, FILE*ofp)
-{
-	int min_column = is_declaration (token) ? DECLARATOR_COLUMN : MNEMONIC_COLUMN;
-	if (min_column <= column && is_declaration (token) && !is_addressable_declaration (token))
-	{
-		min_column = column + 1;
-	}
-	int chars_printed = pad_to_column (column, min_column, ofp);
-
 	char*lowercase_token = malloc(strlen (token) + 1);
 	lowercase_string(lowercase_token, token);
 
-	chars_printed += fprintf (ofp, "%s" , lowercase_token);
-	if ( is_declaration (token) )
-	{
-		fprintf (ofp, "%c",
-			#ifdef ONLY_TABS
-			'\t'
-			#else
-			' '
-			#endif
-			);
-		chars_printed += 1
-			#ifdef ONLY_TABS
-			* TAB_WIDTH
-			#endif
-			;
-	}
+	int chars_printed = fprintf (ofp, "%s" , lowercase_token);
 	free (lowercase_token); lowercase_token = 0;
 	return chars_printed;
 }
 
 static int format_argument (char const*token, FILE*ofp)
 {
-	bool const needs_space = ',' == token[strlen (token) - 1];
-	char*maybe_space = needs_space? " " : "" ;
-
 	// TODO: parens around negative numbers
 
 	char*ntoken = strdup (token);
+	fix_binary_notations (ntoken);
 	normalize_words_in (ntoken);
 
-	int printed = fprintf (ofp, "%s%s" , ntoken, maybe_space);
-	free (ntoken);
+	int printed = fprintf (ofp, "%s", ntoken);
+	free (ntoken); ntoken = 0;
 	return printed;
 }
 
-static int format_label (char const*token, bool may_need_newline, bool colon_allowed, FILE*ofp)
+static int format_label (char const*token, FILE*ofp)
 {
-	bool const has_colon = ':' == token[strlen (token) - 1];
-	bool const needs_colon = colon_allowed
-		&& !has_colon
-		&& !is_segment_label (token);
-	bool const needs_newline = may_need_newline
-		&& MNEMONIC_COLUMN < (strlen (token) - has_colon);
-
-	char*maybe_colon = needs_colon? ":" : "" ;
-	char*maybe_newline = needs_newline? "\n" : "" ;
-
 	char*ntoken = strdup (token);
 	normalize_label (ntoken, token);
-	size_t column = ( !needs_newline) * fprintf (ofp, "%s%s%s"
-		, ntoken
-		, maybe_colon
-		, maybe_newline);
-	free (ntoken); ntoken = 0;
 
+	int column = fprintf (ofp, "%s", token);
+
+	free (ntoken); ntoken = 0;
 	return column;
 }
+
+#include"libasm8051/delegate.h"
 
 /******************************************************************************
  * Section: formatting dispatcher
  *
  * delegate control to token formatter
  */
-
-static bool format(char**token, int linenr, FILE*ofp)
+bool format_line(struct addressed const*a, void*data)
 {
-	enum state
-	{
-		seen_start,
-		seen_label,
-		seen_mnemonic_or_declaration,
-		seen_argument,
-		seen_comment,
-		seen_newline,
-	} state = seen_start;
+	FILE*ofp = *(FILE**)data;
 	int column = 0;
-	int i = 0;
-
-	while (true)
+	if (a->label)
 	{
-		char*current = token[i];
-		i += 1;
-		if (state < seen_newline && is_newline (current))
+		column += format_label (a->label[0], ofp);
+		if ( a->mnemonic_or_declaration
+			&& !is_mnemonic (a->mnemonic_or_declaration)
+			&& !is_addressable_declaration (a->mnemonic_or_declaration))
 		{
-			fprintf (ofp, "\n" );
-			return true;
-		}
-
-		if (state < seen_comment && is_comment (current))
-		{
-			format_comment (current, column, ofp);
-			state = seen_comment;
-			continue;
-		}
-
-		if (state <= seen_argument
-			&& seen_mnemonic_or_declaration <= state
-			&& !is_newline (current)
-			&& !is_comment (current)
-			&& !is_mnemonic_or_declaration (current))
-		{
-			if (state == seen_mnemonic_or_declaration)
+			column += insert_semantic_whitespace (column, ofp);
+		} else {
+			if (a->label[0][strlen (a->label[0]) - 1] != ':' && !is_segment_label (a->label[0]))
 			{
-				if (ARGUMENT_COLUMN <= column)
-				{
-					column += (fprintf (ofp,
-					#ifdef ONLY_TABS
-					"\t" ), column % 8);
-					#else
-					" " ));
-					#endif
-				} else {
-					column += pad_to_column (column, ARGUMENT_COLUMN, ofp);
-				}
+				column += fprintf (ofp, "%c", ':');
 			}
-
-			if ( !fix_binary_notations (current))
+			if (MNEMONIC_COLUMN < column && a->mnemonic_or_declaration)
 			{
-				return false;
+				fprintf (ofp, "\n");
+				column = 0;
 			}
-			column += format_argument (current, ofp);
-			state = seen_argument;
-			continue;
 		}
-
-		if (state < seen_mnemonic_or_declaration
-			&& is_mnemonic_or_declaration (current))
-		{
-			column += format_mnemonic_or_declaration (current, column, ofp);
-			state = seen_mnemonic_or_declaration;
-			continue;
-		}
-
-		if (state < seen_label
-			&& is_macro (current))
-		{
-			format_comment (current, column, ofp);
-			state = seen_comment;
-			continue;
-		}
-
-		if (state < seen_label
-			&& !is_newline (current)
-			&& !is_comment (current)
-			&& !is_mnemonic_or_declaration (current))
-		{
-			char*next = token[i];
-			bool may_need_newline = !is_newline (next) && !is_comment (next) && !is_declaration (next);
-			bool colon_allowed = is_newline (next) || is_mnemonic (next) || is_addressable_declaration (next) || is_comment (next);
-			column += format_label (current, may_need_newline, colon_allowed, ofp);
-			state = seen_label;
-			continue;
-		}
-
-		fprintf (stderr, "unexpected token \"%s\" on line %d;" , current, linenr);
-		switch (state)
-		{
-		break; case seen_start:
-			fprintf (stderr, "expected label, mnemonic, declaration, or comment as first token.\n");
-		break; case seen_label:
-			fprintf (stderr, "expected mnemonic, declaration, or comment after a label (\"%s\").\n", current-1);
-		break; case seen_mnemonic_or_declaration:
-			fprintf (stderr, "expected argument or comment after mnemonic/declaration \"%s\"\n", current-1);
-		break; case seen_argument:
-			fprintf (stderr, "expected argument or comment after argument \"%s\"\n", current-1);
-		break; case seen_comment:
-			fprintf (stderr, "stray token after comment \"%s\"\n", current-1);
-		break; case seen_newline:
-		default:
-			fprintf (stderr, "token consumer error (seen=%d)\n" , state);
-		}
-		return false;
 	}
+	if (a->mnemonic_or_declaration)
+	{
+		if (is_macro (a->mnemonic_or_declaration))
+		{
+			column += fprintf (ofp, "%s", a->mnemonic_or_declaration);
+		} else {
+			if (is_mnemonic (a->mnemonic_or_declaration)
+				&& column < MNEMONIC_COLUMN)
+			{
+				column += pad_to_column (column, MNEMONIC_COLUMN, ofp);
+			}
+			else if (is_declaration (a->mnemonic_or_declaration)
+				&& column < DECLARATOR_COLUMN)
+			{
+				column += pad_to_column (column, DECLARATOR_COLUMN, ofp);
+			} else if (column < MNEMONIC_COLUMN){
+				column += pad_to_column (column, MNEMONIC_COLUMN, ofp);
+			}
+			column += format_mnemonic_or_declaration (a->mnemonic_or_declaration, ofp);
+		}
+	}
+	if (a->argument)
+	{
+		column += insert_semantic_whitespace (column, ofp);
+		if (column < ARGUMENT_COLUMN)
+		{
+			column += pad_to_column (column, ARGUMENT_COLUMN, ofp);
+		}
+		char*seperator = "";
+		for (int i = 0; a->argument[i]; i += 1)
+		{
+			column += fprintf (ofp, "%s", seperator);
+			column += format_argument (a->argument[i], ofp);
+			seperator = ", ";
+		}
+	}
+	if (a->comment)
+	{
+		if (column && column < COMMENT_COLUMN)
+		{
+			pad_to_column (column, COMMENT_COLUMN, ofp);
+		}
+		fprintf (ofp, "%s", a->comment[0]);
+	}
+	fprintf (ofp, "\n");
+	return true;
 }
 
 /******************************************************************************
@@ -498,43 +424,7 @@ int main(int argc, char**argv)
 			return 1;
 		}
 	}
-	int linenr = 1;
-	bool more_lines;
-	do
-	{
-		#include"libasm8051/readline.h"
-		#include"libasm8051/strarray.h"
-		char*input = 0;
-		more_lines = readline (ifp, &input);
-		if ( !more_lines && !input[0] )
-		{
-			free (input); input = 0;
-			break;
-		}
-		char**tokens = malloc (sizeof (char* ));
-		*tokens = 0;
-
-		if ( !split_line_into_parts (input, &tokens))
-		{
-			fprintf (stderr, "token splitting failed on line %d:\n%s\n" , linenr, input);
-			free (input); input = 0;
-			strarray_free (tokens); tokens = 0;
-			free (outfilen); outfilen = 0;
-			return 1;
-		}
-		if ( !format (tokens, linenr, ofp))
-		{
-			fprintf (stderr, "formatting failed on line %d\n%s\n", linenr, input);
-			free (input); input = 0;
-			strarray_free (tokens); tokens = 0;
-			free (outfilen); outfilen = 0;
-			return 1;
-		}
-		linenr += 1;
-
-		free (input); input = 0;
-		strarray_free (tokens); tokens = 0;
-	} while (more_lines);
+	callback_lexed_line (ifp, &format_line, &ofp);
 	fclose (ifp); ifp = 0;
 	fclose (ofp); ofp = 0;
 	if (outfilen)
