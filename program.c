@@ -338,7 +338,8 @@ bool format_line(struct addressed const*a, void*data)
 			{
 				column += fprintf (ofp, "%c", ':');
 			}
-			if (MNEMONIC_COLUMN < column && a->mnemonic_or_declaration)
+			if ((is_mnemonic (a->mnemonic_or_declaration) && MNEMONIC_COLUMN < column)
+				|| (is_addressable_declaration(a->mnemonic_or_declaration) && DECLARATOR_COLUMN < column))
 			{
 				fprintf (ofp, "\n");
 				column = 0;
