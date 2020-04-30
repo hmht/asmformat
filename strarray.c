@@ -2,7 +2,7 @@
 #include<stddef.h>
 #include<stdlib.h>
 #include<string.h>
-extern void strarray_append(char***array, char*value)
+extern void strarray_append(char***array, char const*value)
 {
 	size_t nvalues = 0;
 	while ( *array && ( *array)[nvalues] )
