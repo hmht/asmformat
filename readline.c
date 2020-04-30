@@ -1,6 +1,7 @@
 #include"readline.h"
 #include<stdlib.h>
 #include<string.h>
+#include<stddef.h>
 extern bool readline(FILE*fp, char**line)
 {
 	*line = malloc (80);
@@ -31,9 +32,9 @@ extern bool readline(FILE*fp, char**line)
 		p += 1;
 		if (p == end_of_buffer)
 		{
-			size_t np = p - *line;
-			size_t nlnw = last_nonwhitespace - *line;
-			*line = realloc ( *line, np + 80);
+			int np = p - *line;
+			int nlnw = last_nonwhitespace - *line;
+			*line = realloc ( *line, (np + 80) * sizeof**line);
 			p = *line + np;
 			end_of_buffer = *line + np + 79;
 			last_nonwhitespace = *line + nlnw;
