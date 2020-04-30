@@ -1,10 +1,23 @@
+CC:=clang
 CFLAGS+=-Wall -Wextra -pedantic
+
+ifeq ($(CC),gcc)
 CFLAGS+=-Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict -Wnull-dereference -Wjump-misses-init -Wformat=2
 CFLAGS+=-Wformat-overflow -Wformat-truncation -Wundef -fno-common -Wunused-parameter
-libasm8051.a: avocet.o delegate.o readline.o strarray.o strcasecmp.o strcasecmp.o token.o
-	cppcheck --quiet --suppress=unusedFunction --enable=all $(filter-out strcasecmp.c,$(subst .o,.c,$^))
-	-splint -weak +quiet -nestedextern -predboolothers -boolops $(filter-out strcasecmp.c,$(subst .o,.c,$^))
-	ar -rcs $@ $^
+endif
+
+CFLAGS+=-fsanitize=address
+LDFLAGS+=-lasan
+
+all: libasm8051.a
+#	cppcheck --quiet --suppress=unusedFunction --enable=all $(filter-out strcasecmp.c,$(subst .o,.c,$^))
+#	-splint -posixlib -weak +quiet -nestedextern -predboolothers -boolops $(filter-out strcasecmp.c,$(subst .o,.c,$^))
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
+
+clean: $(wildcard libasm8051.a)
+	@test -z "$^" || echo rm $^
+	@test -z "$^" || rm $^
+
+include libasm8051.mk
