@@ -27,5 +27,5 @@ extern void strarray_free(char**array)
 		free (array[i] ); array[i] = 0;
 		i += 1;
 	}
-	free (array); array = 0;
+	free (array); array = 0; (void)array;
 }
