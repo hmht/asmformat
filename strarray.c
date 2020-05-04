@@ -29,3 +29,21 @@ extern void strarray_free(char**array)
 	}
 	free (array); array = 0; (void)array;
 }
+
+extern void
+strarray_merge(char***dest, char**src)
+{
+	int i = 0;
+	if (!*dest)
+	{
+		*dest = src;
+	} else {
+		#include"strarray.h"
+		while (src && src[i]) {
+			strarray_append (dest, src[i]);
+			i += 1;
+		}
+		strarray_free (src); src = 0;
+		free (src); src = 0;
+	}
+}

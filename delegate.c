@@ -187,6 +187,22 @@ callback_lexed_line(FILE*file, bool (*callback)(struct addressed const*, void*),
 	return rv;
 }
 
+static void
+merge_addressed(struct addressed*dest, struct addressed*src)
+{
+	#include"strarray.h"
+	strarray_merge (&dest->label, src->label);
+
+	//assert (! (dest->mnemonic_or_declaration && src->mnemonic_or_declaration));
+	if (!dest->mnemonic_or_declaration)
+	{
+		 dest->mnemonic_or_declaration = src->mnemonic_or_declaration;
+	}
+
+	strarray_merge (&dest->argument, src->argument);
+	strarray_merge (&dest->comment, src->comment);
+}
+
 extern bool
 callback_addressed(FILE*file, bool (*callback)(struct addressed const*, void*), void*data)
 {
@@ -203,14 +219,17 @@ callback_addressed(FILE*file, bool (*callback)(struct addressed const*, void*), 
 		{
 			rv &= callback (&a, data);
 			free_addressed (&a);
-			memcpy(&l, &a, sizeof l);
+			memcpy(&a, &l, sizeof a);
+		} else {
+			merge_addressed (&a, &l);
 		}
 		a.line_to = linenr;
+		linenr += 1;
 	}
 	if (rv && a.mnemonic_or_declaration)
 	{
 		rv &= callback (&a, data);
-		free_addressed (&a);
 	}
+	free_addressed (&a);
 	return rv;
 }
