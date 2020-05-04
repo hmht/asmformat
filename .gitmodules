@@ -1,0 +1,3 @@
+[submodule "trie"]
+	path = trie
+	url = http://forge.dev.hollandmechanics.com./github/trie
