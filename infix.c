@@ -572,6 +572,12 @@ solve_sexpr_arg(struct sexpr_arg const*a, struct trie*sym, struct parseerror*e)
 	case arg_string:
 		return resolve_word (a->word, sym, e);
 	}
+	e->at = 0;
+	e->expected = "arg_null, arg_subexpr, arg_word, or arg_string";
+	const char errmsg[] = "unknown argument type 0x%x";
+	e->got = malloc (sizeof (errmsg) + 2 + (2*sizeof a->type));
+	sprintf (e->got, errmsg, a->type);
+	return 0;
 }
 
 static uint16_t
@@ -598,6 +604,12 @@ solve_sexpr(struct sexpr const*s, struct trie*sym, struct parseerror*e)
 	break; case op_remainder:
 		return solve_sexpr_arg (s->arg, sym, e) % solve_sexpr_arg (&s->arg[1], sym, e);
 	}
+	e->at = 0;
+	e->expected = "+, -, /, *, low, high";
+	const char errmsg[] = "unknown operator '%s'";
+	e->got = malloc (sizeof (errmsg) + strlen (describe_operator[s->operator]));
+	sprintf (e->got, errmsg, describe_operator[s->operator]);
+	return 0;
 }
 
 extern uint16_t
