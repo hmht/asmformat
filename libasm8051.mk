@@ -14,8 +14,8 @@ objs+=$(path)strcasecmp.o
 $(path)libasm8051.a: $(objs)
 	$(AR) -rcs $@ $^
 
-clean: $(wildcard $(path)libasm8051.a $(objs) $(path)strcasecmp.o)
+clean: | $(wildcard $(path)libasm8051.a $(objs) $(path)strcasecmp.o)
 
 undefine objs
-#include $(path)trie/trie.mk
+include $(path)trie/trie.mk
 undefine path

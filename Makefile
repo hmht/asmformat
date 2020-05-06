@@ -14,10 +14,10 @@ all: libasm8051.a
 #	-splint -posixlib -weak +quiet -nestedextern -predboolothers -boolops $(filter-out strcasecmp.c,$(subst .o,.c,$^))
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $< -o $@
 
-clean: $(wildcard libasm8051.a)
-	@test -z "$^" || echo rm $^
-	@test -z "$^" || rm $^
+clean: | $(wildcard libasm8051.a)
+	@test -z "$|" || echo rm $|
+	@test -z "$|" || rm $|
 
 include libasm8051.mk
