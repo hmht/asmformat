@@ -298,9 +298,9 @@ looks_like_hexadecimal(char const*w)
 		{
 			continue;
 		}
-		if ( (w[i] < '0' && '9' < w[i])
-			&& (w[i] < 'a' && 'f' < w[i])
-			&& (w[i] < 'A' && 'F' < w[i]))
+		if ( (w[i] < '0' || '9' < w[i])
+			&& (w[i] < 'a' || 'f' < w[i])
+			&& (w[i] < 'A' || 'F' < w[i]))
 		{
 			return false;
 		}
