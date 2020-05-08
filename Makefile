@@ -6,15 +6,20 @@ CFLAGS+=-Wformat-overflow -Wformat-truncation -Wundef -fno-common -Wunused-param
 #CFLAGS+=-fsanitize=address -fsanitize=undefined -lasan
 CFLAGS+=-DONLY_TABS
 
-asmformat: program.c libasm8051/token.o libasm8051/strarray.o libasm8051/avocet.o libasm8051/readline.o libasm8051/delegate.o libasm8051/strcasecmp.o
-	cppcheck --quiet --suppress=unusedFunction --enable=all $(filter-out strcasecmp.c,$(subst .o,.c,$^))
-	$(CC) $(CFLAGS) $^ -o $@
+asmformat.exe asmformat: program.c libasm8051/libasm8051.a
+	#cppcheck --quiet --suppress=unusedFunction --enable=all $<
+	$(CC) $(CFLAGS) $(filter-out $(MAKEFILE_LIST),$^) -o $@
 
-tests: asmformat
-	sh test.sh
+.PHONY: clean
+clean: | $(wildcard asmformat)
+	@test -z "$|" || echo rm $|
+	@test -z "$|" || rm $|
+
+$(foreach m, $(shell git submodule status | cut -d' ' -f2), $m/$m.mk): .gitmodules
+	git submodule update --init $(@D)
+	touch --no-create $@
+
+include libasm8051/libasm8051.mk
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $^ -o $@
-
-clean:
-	-rm -r *.o asmformat tests
+	$(CC) $(CFLAGS) -c $(filter-out $(MAKEFILE_LIST), $^) -o $@

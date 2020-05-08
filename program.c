@@ -1,38 +1,3 @@
-/*
- *                              Architecture
- *
- * Documentation last updated on 2019-09-27
- * 1. File is opened or stdin is used
- * 2. One line is read into dynamically allocated memory.
- * 3. The line is cut into "tokens". There are three tokenizers:
- *      - one for "wordish tokens" which are space-delimited
- *      - one for "argumentish tokens"; comma-delimited, and can have strings
- *      - one for comments, which start at a ; and end at the newline
- *    Note that this requires the tokenizer to already sort of understand the
- *    syntax, so it's sort of like it is a half-assed classifier. Not sure if
- *    this is a good idea.
- * 4. The tokens are gathered into an array (dynamically resized)
- * 5. The whole array is analized (tokens are classified by contents and
- *    relative position), and each is written out with prettier formatting.
- *    It currently assumes that each line can be independently formatted. I.e.
- *    there is no contextual formatting. If you want to go the full mile,
- *    contextual formatting gives the best results, you can prettify things
- *    like tables and make elastic tab stops.
- * 6. If there are no errors, the output file will overwrite the input file
- *
- *
- * File contents:
- * Section: classifiers
- * Section: formatter helpers
- * Section: token formatters
- * Section: formatting dispatcher
- * Section: tokenizers
- * Section: input handlers
- * Section: array datastructure
- * Section: main
- *
- */
-
 #include<stdbool.h>
 #include<stdio.h>
 #include<string.h>
