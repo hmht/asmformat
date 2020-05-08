@@ -9,13 +9,14 @@ endif
 CFLAGS+=-fsanitize=address
 LDFLAGS+=-lasan
 
-all: libasm8051.a
+all: libasm8051.a $(lastword $(MAKEFILE_LIST))
 #	cppcheck --quiet --suppress=unusedFunction --enable=all $(filter-out strcasecmp.c,$(subst .o,.c,$^))
 #	-splint -posixlib -weak +quiet -nestedextern -predboolothers -boolops $(filter-out strcasecmp.c,$(subst .o,.c,$^))
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+.PHONY: clean
 clean: | $(wildcard libasm8051.a)
 	@test -z "$|" || echo rm $|
 	@test -z "$|" || rm $|
