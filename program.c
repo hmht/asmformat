@@ -197,8 +197,7 @@ static bool fix_binary_notations(char*label)
 		if ( *label == '\'' )
 		{
 			is_in_string = !is_in_string;
-		} else switch ( *label)
-		{
+		} else if (!is_in_string) switch ( *label) {
 		default:
 			if (writeout)
 			{
