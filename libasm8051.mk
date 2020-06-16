@@ -1,23 +1,24 @@
-path:=$(dir $(lastword $(MAKEFILE_LIST)))
+module_path:=$(dir $(lastword $(MAKEFILE_LIST)))
 
-objs:=$(addprefix $(path), avocet.o delegate.o readline.o strarray.o token.o infix.o trie/trie.o)
+objs:=$(addprefix $(module_path), avocet.o delegate.o readline.o strarray.o token.o infix.o trie/trie.o)
 
 $(objs): $(lastword $(MAKEFILE_LIST))
 
 # windows doesn't have strcasecmp
-objs+=$(path)strcasecmp.o
-$(path)strcasecmp.o: CFLAGS=-O3
+objs+=$(module_path)strcasecmp.o
+$(module_path)strcasecmp.o: CFLAGS=-O3
 
-$(path)libasm8051.a: $(objs)
+$(module_path)libasm8051.a: $(objs)
 	$(AR) -rcs $@ $^
 
 .PHONY: clean
-clean: | $(wildcard $(path)libasm8051.a $(objs) $(path)strcasecmp.o)
+clean: | $(wildcard $(module_path)libasm8051.a $(objs) $(module_path)strcasecmp.o)
 
-$(foreach m, $(shell git submodule status | cut -d' ' -f2), $(path)/$m/$m.mk): $(path)/.gitmodules
-	git submodule update --init $(@D)
+git_modules:=$(shell git -C $(module_path) config --file .gitmodules --get-regexp path | cut -d' ' -f 2)
+$(foreach m, $(git_modules), $(module_path)$m/$m.mk): $(module_path).gitmodules
+	git -C $(dir $<) submodule update --init $(notdir $(@D))
 	touch --no-create $@
 
 undefine objs
-include $(path)trie/trie.mk
-undefine path
+include $(module_path)trie/trie.mk
+undefine module_path
