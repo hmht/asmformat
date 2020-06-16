@@ -15,7 +15,8 @@ clean: | $(wildcard asmformat)
 	@test -z "$|" || echo rm $|
 	@test -z "$|" || rm $|
 
-$(foreach m, $(shell git submodule status | cut -d' ' -f2), $m/$m.mk): .gitmodules
+git_modules:=$(shell git config --file .gitmodules --get-regexp path | cut -d' ' -f 2)
+$(foreach m, $(git_modules), $m/$m.mk): .gitmodules
 	git submodule update --init $(@D)
 	touch --no-create $@
 
