@@ -50,6 +50,8 @@ extern bool is_segment_label(char const*token)
 	static char const*const segment_label[] = {
 		"xseg",
 		"cseg",
+		"dseg",
+		"iseg",
 		0
 	};
 	for (char const*const*p = segment_label ; *p ; p += 1)
@@ -95,9 +97,14 @@ extern bool is_declaration(char const*token)
 	{
 		return true;
 	}
+	if (is_segment_label (token))
+	{
+		return true;
+	}
 	static char const*const declarators[] = {
 		"bit",
 		"data",
+		"idata",
 		"xdata",
 		"equ",
 		"code",
@@ -183,4 +190,3 @@ extern bool closes_string(char prev, char next)
 {
 	return next == '\'' && prev != '\\';
 }
-
