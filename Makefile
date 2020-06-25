@@ -10,6 +10,8 @@ asmformat.exe asmformat: program.c libasm8051/libasm8051.a
 	#cppcheck --quiet --suppress=unusedFunction --enable=all $<
 	$(CC) $(CFLAGS) $(filter-out $(MAKEFILE_LIST),$^) -o $@
 
+%.mk: %.c
+	$(CC) -MM $< > $@
 .PHONY: clean
 clean: | $(wildcard asmformat)
 	@test -z "$|" || echo rm $|
