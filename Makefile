@@ -9,6 +9,9 @@ endif
 CFLAGS+=-fsanitize=address
 LDFLAGS+=-lasan
 
+%.mk: %.c
+	$(CC) -MM $< > $@
+
 all: libasm8051.a $(lastword $(MAKEFILE_LIST))
 #	cppcheck --quiet --suppress=unusedFunction --enable=all $(filter-out strcasecmp.c,$(subst .o,.c,$^))
 #	-splint -posixlib -weak +quiet -nestedextern -predboolothers -boolops $(filter-out strcasecmp.c,$(subst .o,.c,$^))

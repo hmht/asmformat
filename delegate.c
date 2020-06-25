@@ -76,7 +76,7 @@ lex(char**token, int linenr, struct addressed*out)
 			state = seen_newline;
 			continue;
 		}
-		if (state <= seen_comment && is_comment (current))
+		if (state <= seen_comment && is_comment (current, !i))
 		{
 			strarray_append(&out->comment, current);
 			state = seen_comment;
@@ -85,7 +85,7 @@ lex(char**token, int linenr, struct addressed*out)
 		if (state <= seen_argument
 			&& seen_mnemonic_or_declaration <= state
 			&& !is_newline (current)
-			&& !is_comment (current)
+			&& !is_comment (current, !i)
 			&& !is_mnemonic_or_declaration (current))
 		{
 			strarray_append(&out->argument, current);
@@ -108,7 +108,7 @@ lex(char**token, int linenr, struct addressed*out)
 		}
 		if (state < seen_label
 			&& !is_newline (current)
-			&& !is_comment (current)
+			&& !is_comment (current, !i)
 			&& !is_mnemonic_or_declaration (current))
 		{
 			strarray_append (&out->label, current);

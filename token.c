@@ -7,10 +7,10 @@ static bool is_whitespace(char c)
 	return c == ' ' || c == '\t';
 }
 
-static size_t wordtokenizer(char const**line, char**token)
+static size_t wordtokenizer(char const**line, char**token, bool start_of_line)
 {
 	#include"syntax.h"
-	if ( is_comment ( *line) || has_blob ( *line))
+	if ( is_comment ( *line, start_of_line) || has_blob ( *line))
 	{
 		strcpy ( *token, *line);
 		*token = realloc ( *token, strlen ( *token) + 1);
@@ -48,10 +48,10 @@ static size_t wordtokenizer(char const**line, char**token)
 	return strlen ( *token);
 }
 
-static size_t argtokenizer(char const**line, char**token)
+static size_t argtokenizer(char const**line, char**token, bool start_of_line)
 {
 	#include"syntax.h"
-	if (is_comment ( *line))
+	if (is_comment ( *line, start_of_line))
 	{
 		strcpy ( *token, *line);
 		*token = realloc ( *token, strlen ( *token) + 1);
@@ -65,7 +65,7 @@ static size_t argtokenizer(char const**line, char**token)
 	while ( **line)
 	{
 		if ( !is_in_string
-			&& ( **line == ',' || is_comment ( *line)))
+			&& ( **line == ',' || is_comment ( *line, start_of_line)))
 		{
 			break;
 		}
@@ -93,8 +93,9 @@ static size_t argtokenizer(char const**line, char**token)
 	return strlen ( *token);
 }
 
-static size_t blobtokenizer(char const**line, char**token)
+static size_t blobtokenizer(char const**line, char**token, bool start_of_line)
 {
+	(void) start_of_line;
 	char*last_nonwhitespace = *token - 1;
 	char*w = *token;
 	while ( **line)
@@ -120,7 +121,7 @@ extern bool split_line_into_parts(char const*line, char***tokens)
 	{
 		return false;
 	}
-	size_t ( *tokenizer)(char const**, char** ) = &wordtokenizer;
+	size_t ( *tokenizer)(char const**, char**, bool ) = &wordtokenizer;
 	while ( *line)
 	{
 		#include"strarray.h"
@@ -129,7 +130,7 @@ extern bool split_line_into_parts(char const*line, char***tokens)
 			line += 1;
 		}
 		char*token = malloc (strlen (line) + 1);
-		if ( !tokenizer (&line, &token))
+		if ( !tokenizer (&line, &token, !*tokens || !**tokens))
 		{
 			fprintf (stderr, "empty token from %stokenizer?\n", tokenizer == wordtokenizer ? "word" : tokenizer == argtokenizer ? "arg" : "blob" );
 			free (token); token = 0;

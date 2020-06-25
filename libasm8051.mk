@@ -14,11 +14,12 @@ $(module_path)libasm8051.a: $(objs)
 .PHONY: clean
 clean: | $(wildcard $(module_path)libasm8051.a $(objs) $(module_path)strcasecmp.o)
 
-git_modules:=$(shell git -C $(module_path) config --file .gitmodules --get-regexp path | cut -d' ' -f 2)
+git_modules:=$(shell git -C ./$(module_path) config --file .gitmodules --get-regexp path | cut -d' ' -f 2)
 $(foreach m, $(git_modules), $(module_path)$m/$m.mk): $(module_path).gitmodules
 	git -C $(dir $<) submodule update --init $(notdir $(@D))
 	touch --no-create $@
 
-undefine objs
 include $(module_path)trie/trie.mk
+include $(patsubst %.o, %.mk, $(objs))
+undefine objs
 undefine module_path

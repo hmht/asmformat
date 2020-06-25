@@ -23,13 +23,13 @@ extern bool is_newline(char const*token)
 	return !token;
 }
 
-extern bool is_comment(char const*token)
+extern bool is_comment(char const*token, bool start_of_line)
 {
 	if ( !token)
 	{
 		return false;
 	}
-	return token[0] == ';' ;
+	return token[0] == ';' || (start_of_line && token[0] == '*');
 }
 
 extern bool is_macro(char const*token)
