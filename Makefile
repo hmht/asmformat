@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS+=-Wall -Wextra -pedantic
-CFLAGS+=-Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict -Wnull-dereference -Wjump-misses-init -Wformat=2
-CFLAGS+=-Wformat-overflow -Wformat-truncation -Wundef -fno-common -Wunused-parameter
+#CFLAGS+=-Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict -Wnull-dereference -Wjump-misses-init -Wformat=2
+#CFLAGS+=-Wformat-overflow -Wformat-truncation -Wundef -fno-common -Wunused-parameter
 #CFLAGS+=-g
 #CFLAGS+=-fsanitize=address -fsanitize=undefined -lasan
 CFLAGS+=-DONLY_TABS
