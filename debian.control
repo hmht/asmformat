@@ -1,0 +1,6 @@
+Package: asmformat
+Section: devel
+Priority: optional
+Architecture: amd64
+Maintainer: bal@hollandmechanics.com
+Description: tool to reformat 8051 assembly
