@@ -6,14 +6,14 @@ CFLAGS+=-Wall -Wextra -pedantic
 #CFLAGS+=-fsanitize=address -fsanitize=undefined -lasan
 CFLAGS+=-DONLY_TABS
 
-asmformat.exe asmformat: program.c libasm8051/libasm8051.a
+asmformat asmformat.exe: program.c libasm8051/libasm8051.a
 	#cppcheck --quiet --suppress=unusedFunction --enable=all $<
 	$(CC) $(CFLAGS) $(filter-out $(MAKEFILE_LIST),$^) -o $@
 
 %.mk: %.c
 	$(CC) -MM $< > $@
 .PHONY: clean
-clean: | $(wildcard asmformat)
+clean: | $(wildcard asmformat asmformat.exe)
 	@test -z "$|" || echo rm $|
 	@test -z "$|" || rm $|
 
